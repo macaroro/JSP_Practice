@@ -77,78 +77,28 @@ public class BoardDAO extends JDBConnect {
         return bbs;
     }
     
-    // 寃��깋 議곌굔�뿉 留욌뒗 寃뚯떆臾� 紐⑸줉�쓣 諛섑솚�빀�땲�떎(�럹�씠吏� 湲곕뒫 吏��썝).
-    public List<BoardDTO> selectListPage(Map<String, Object> map) {
-        List<BoardDTO> bbs = new Vector<BoardDTO>();  // 寃곌낵(寃뚯떆臾� 紐⑸줉)瑜� �떞�쓣 蹂��닔
-        
-        // 荑쇰━臾� �뀥�뵆由�  
-        String query = " SELECT * FROM ( "
-                     + "    SELECT Tb.*, ROWNUM rNum FROM ( "
-                     + "        SELECT * FROM board ";
+   
 
-        // 寃��깋 議곌굔 異붽� 
-        if (map.get("searchWord") != null) {
-            query += " WHERE " + map.get("searchField")
-                   + " LIKE '%" + map.get("searchWord") + "%' ";
-        }
-        
-        query += "      ORDER BY num DESC "
-               + "     ) Tb "
-               + " ) "
-               + " WHERE rNum BETWEEN ? AND ?"; 
-
-        try {
-            // 荑쇰━臾� �셿�꽦 
-            psmt = con.prepareStatement(query);
-            psmt.setString(1, map.get("start").toString());
-            psmt.setString(2, map.get("end").toString());
-            
-            // 荑쇰━臾� �떎�뻾 
-            rs = psmt.executeQuery();
-            
-            while (rs.next()) {
-                // �븳 �뻾(寃뚯떆臾� �븯�굹)�쓽 �뜲�씠�꽣瑜� DTO�뿉 ���옣
-                BoardDTO dto = new BoardDTO();
-                dto.setNum(rs.getString("num"));
-                dto.setTitle(rs.getString("title"));
-                dto.setContent(rs.getString("content"));
-                dto.setPostdate(rs.getDate("postdate"));
-                dto.setId(rs.getString("id"));
-                dto.setVisitcount(rs.getString("visitcount"));
-
-                // 諛섑솚�븷 寃곌낵 紐⑸줉�뿉 寃뚯떆臾� 異붽�
-                bbs.add(dto);
-            }
-        } 
-        catch (Exception e) {
-            System.out.println("寃뚯떆臾� 議고쉶 以� �삁�쇅 諛쒖깮");
-            e.printStackTrace();
-        }
-        
-        // 紐⑸줉 諛섑솚
-        return bbs;
-    }
-
-    // 寃뚯떆湲� �뜲�씠�꽣瑜� 諛쏆븘 DB�뿉 異붽��빀�땲�떎. 
+    // 게시글 데이터를 받아 데이터 베이스에 추가
     public int insertWrite(BoardDTO dto) {
         int result = 0;
         
         try {
-            // INSERT 荑쇰━臾� �옉�꽦 
+            // 쿼리문
             String query = "INSERT INTO board ( "
                          + " num,title,content,id,visitcount) "
                          + " VALUES ( "
                          + " seq_board_num.NEXTVAL, ?, ?, ?, 0)";  
 
-            psmt = con.prepareStatement(query);  // �룞�쟻 荑쇰━ 
-            psmt.setString(1, dto.getTitle());  
-            psmt.setString(2, dto.getContent());
-            psmt.setString(3, dto.getId());  
+            psmt = con.prepareStatement(query);  // 동적 쿼리
+            psmt.setString(1, dto.getTitle());  //제목
+            psmt.setString(2, dto.getContent());//내용
+            psmt.setString(3, dto.getId());  //아이디
             
             result = psmt.executeUpdate(); 
         }
         catch (Exception e) {
-            System.out.println("寃뚯떆臾� �엯�젰 以� �삁�쇅 諛쒖깮");
+            System.out.println("글쓰기 실패");
             e.printStackTrace();
         }
         
@@ -156,11 +106,11 @@ public class BoardDAO extends JDBConnect {
     }
 
 
-    // 吏��젙�븳 寃뚯떆臾쇱쓣 李얠븘 �궡�슜�쓣 諛섑솚�빀�땲�떎.
+    // 저장한 글 상세보기
     public BoardDTO selectView(String num) { 
         BoardDTO dto = new BoardDTO();
         
-        // 荑쇰━臾� 以�鍮�
+        // 쿼리
         String query = "SELECT B.*, M.name " 
                      + " FROM member M INNER JOIN board B " 
                      + " ON M.id=B.id "
@@ -168,10 +118,10 @@ public class BoardDAO extends JDBConnect {
 
         try {
             psmt = con.prepareStatement(query);
-            psmt.setString(1, num);    // �씤�뙆�씪誘명꽣瑜� �씪�젴踰덊샇濡� �꽕�젙 
-            rs = psmt.executeQuery();  // 荑쇰━ �떎�뻾 
+            psmt.setString(1, num);    // 받아오는 id값
+            rs = psmt.executeQuery();  // 결과
 
-            // 寃곌낵 泥섎━
+            // 결과 처리
             if (rs.next()) {
                 dto.setNum(rs.getString(1)); 
                 dto.setTitle(rs.getString(2));
@@ -183,78 +133,78 @@ public class BoardDAO extends JDBConnect {
             }
         } 
         catch (Exception e) {
-            System.out.println("寃뚯떆臾� �긽�꽭蹂닿린 以� �삁�쇅 諛쒖깮");
+            System.out.println("상세보기 실패");
             e.printStackTrace();
         }
         
         return dto; 
     }
-
-    // 吏��젙�븳 寃뚯떆臾쇱쓽 議고쉶�닔瑜� 1 利앷��떆�궢�땲�떎.
+    //  조회수 수정
     public void updateVisitCount(String num) { 
-        // 荑쇰━臾� 以�鍮� 
+        // 해당 번호의 조회수를 +1함 
         String query = "UPDATE board SET "
                      + " visitcount=visitcount+1 "
                      + " WHERE num=?";
         
         try {
             psmt = con.prepareStatement(query);
-            psmt.setString(1, num);  // �씤�뙆�씪誘명꽣瑜� �씪�젴踰덊샇濡� �꽕�젙 
-            psmt.executeQuery();     // 荑쇰━ �떎�뻾 
+            psmt.setString(1, num);  // 글의 번호 가져오기
+            psmt.executeQuery();     // 실행
         } 
         catch (Exception e) {
-            System.out.println("寃뚯떆臾� 議고쉶�닔 利앷� 以� �삁�쇅 諛쒖깮");
+            System.out.println("조회수 증가 실패");
             e.printStackTrace();
         }
     }
     
-    // 吏��젙�븳 寃뚯떆臾쇱쓣 �닔�젙�빀�땲�떎.
+    
+    // 게시물 수정
     public int updateEdit(BoardDTO dto) { 
         int result = 0;
         
         try {
-            // 荑쇰━臾� �뀥�뵆由� 
+            // 해당 일련번호를 받아서 수정
             String query = "UPDATE board SET "
                          + " title=?, content=? "
                          + " WHERE num=?";
             
-            // 荑쇰━臾� �셿�꽦
+           
             psmt = con.prepareStatement(query);
             psmt.setString(1, dto.getTitle());
             psmt.setString(2, dto.getContent());
             psmt.setString(3, dto.getNum());
             
-            // 荑쇰━臾� �떎�뻾 
+            // 실행
             result = psmt.executeUpdate();
         } 
         catch (Exception e) {
-            System.out.println("寃뚯떆臾� �닔�젙 以� �삁�쇅 諛쒖깮");
+            System.out.println("게시물 수정 실패");
             e.printStackTrace();
         }
         
-        return result; // 寃곌낵 諛섑솚 
+        return result; // 결과로 수정되 행의 수를 반환
     }
 
-    // 吏��젙�븳 寃뚯떆臾쇱쓣 �궘�젣�빀�땲�떎.
+    // 게시물 삭제
     public int deletePost(BoardDTO dto) { 
         int result = 0;
 
         try {
-            // 荑쇰━臾� �뀥�뵆由�
+            // 번호를 받아 해당 게시물 삭제
             String query = "DELETE FROM board WHERE num=?"; 
 
-            // 荑쇰━臾� �셿�꽦
+           
             psmt = con.prepareStatement(query); 
             psmt.setString(1, dto.getNum()); 
 
-            // 荑쇰━臾� �떎�뻾
+           
             result = psmt.executeUpdate(); 
         } 
         catch (Exception e) {
-            System.out.println("寃뚯떆臾� �궘�젣 以� �삁�쇅 諛쒖깮");
+            System.out.println("삭제 실패");
             e.printStackTrace();
         }
         
-        return result; // 寃곌낵 諛섑솚
+        return result; // 결과 반환(int)-삭제한 행의 개수
     }
 }
