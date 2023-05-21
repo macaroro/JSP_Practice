@@ -41,43 +41,88 @@ public class BoardDAO extends JDBConnect {
     }
     
     // 게시물의 목록을 가져오는 것
-    public List<BoardDTO> selectList(Map<String, Object> map) { 
-        List<BoardDTO> bbs = new ArrayList<BoardDTO>();  //게시물을 담아놓는 변수
-
-        String query = "SELECT * FROM board "; 
-        if (map.get("searchWord") != null) {
-            query += " WHERE " + map.get("searchField") + " "
-                   + " LIKE '%" + map.get("searchWord") + "%' ";
-        }
-        query += " ORDER BY num DESC "; 
-
-        try {
-            stmt = con.createStatement();   //쿼리문 생성
-            rs = stmt.executeQuery(query);  // 쿼리문 실행
-
-            while (rs.next()) {  // 나온 결과 만큼 계속 반복
-                // 실행된 쿼리문의 한 행을 저장
-                BoardDTO dto = new BoardDTO(); 
-
-                dto.setNum(rs.getString("num"));          // 번호
-                dto.setTitle(rs.getString("title"));      // 제목
-                dto.setContent(rs.getString("content"));  // 내용
-                dto.setPostdate(rs.getDate("postdate"));  // 게시날짜
-                dto.setId(rs.getString("id"));            // 글쓴이
-                dto.setVisitcount(rs.getString("visitcount"));  // 조회수
-
-                bbs.add(dto);  // 만들어진 목록 변수에 저장
-            }
-        } 
-        catch (Exception e) {
-            System.out.println("계시물 조회시 예외 발생");
-            e.printStackTrace();
-        }
-
-        return bbs;
-    }
+//    public List<BoardDTO> selectList(Map<String, Object> map) { 
+//        List<BoardDTO> bbs = new ArrayList<BoardDTO>();  //게시물을 담아놓는 변수
+//
+//        String query = "SELECT * FROM board "; 
+//        if (map.get("searchWord") != null) {
+//            query += " WHERE " + map.get("searchField") + " "
+//                   + " LIKE '%" + map.get("searchWord") + "%' ";
+//        }
+//        query += " ORDER BY num DESC "; 
+//
+//        try {
+//            stmt = con.createStatement();   //쿼리문 생성
+//            rs = stmt.executeQuery(query);  // 쿼리문 실행
+//
+//            while (rs.next()) {  // 나온 결과 만큼 계속 반복
+//                // 실행된 쿼리문의 한 행을 저장
+//                BoardDTO dto = new BoardDTO(); 
+//
+//                dto.setNum(rs.getString("num"));          // 번호
+//                dto.setTitle(rs.getString("title"));      // 제목
+//                dto.setContent(rs.getString("content"));  // 내용
+//                dto.setPostdate(rs.getDate("postdate"));  // 게시날짜
+//                dto.setId(rs.getString("id"));            // 글쓴이
+//                dto.setVisitcount(rs.getString("visitcount"));  // 조회수
+//
+//                bbs.add(dto);  // 만들어진 목록 변수에 저장
+//            }
+//        } 
+//        catch (Exception e) {
+//            System.out.println("계시물 조회시 예외 발생");
+//            e.printStackTrace();
+//        }
+//
+//        return bbs;
+//    }
     
-   
+    //rownum을 이용한 select 
+    public List<BoardDTO> selectList(Map<String, Object> map) { 
+      List<BoardDTO> bbs = new ArrayList<BoardDTO>();  //게시물을 담아놓는 변수
+
+      String query = "SELECT * FROM ("
+    		       + " SELECT tb.*, ROWNUM rnum FROM ("
+                   + " SELECT * FROM board";
+                   
+       
+      if (map.get("searchWord") != null) {
+          query += " WHERE " + map.get("searchField") + " "
+                 + " LIKE '%" + map.get("searchWord") + "%' ";
+      }
+      query += " ORDER BY num DESC "
+    		 +"  )tb "
+    		 + " ) "
+    		 + " WEHRE rnum BETWEEN ? AND ?";    		  
+
+      try {
+          psmt = con.prepareStatement(query);   //쿼리문 생성
+          psmt.setString(1, map.get("start").toString());
+          psmt.setString(2, map.get("end").toString());
+          
+          rs = psmt.executeQuery(query);  // 쿼리문 실행
+
+          while (rs.next()) {  // 나온 결과 만큼 계속 반복
+              // 실행된 쿼리문의 한 행을 저장
+              BoardDTO dto = new BoardDTO(); 
+
+              dto.setNum(rs.getString("num"));          // 번호
+              dto.setTitle(rs.getString("title"));      // 제목
+              dto.setContent(rs.getString("content"));  // 내용
+              dto.setPostdate(rs.getDate("postdate"));  // 게시날짜
+              dto.setId(rs.getString("id"));            // 글쓴이
+              dto.setVisitcount(rs.getString("visitcount"));  // 조회수
+
+              bbs.add(dto);  // 만들어진 목록 변수에 저장
+          }
+      } 
+      catch (Exception e) {
+          System.out.println("계시물 조회시 예외 발생");
+          e.printStackTrace();
+      }
+
+      return bbs;
+  }
 
     // 게시글 데이터를 받아 데이터 베이스에 추가
     public int insertWrite(BoardDTO dto) {
@@ -207,4 +252,57 @@ public class BoardDAO extends JDBConnect {
         
         return result; // 결과 반환(int)-삭제한 행의 개수
     }
+    
+    // 寃��깋 議곌굔�뿉 留욌뒗 寃뚯떆臾� 紐⑸줉�쓣 諛섑솚�빀�땲�떎(�럹�씠吏� 湲곕뒫 吏��썝).
+    public List<BoardDTO> selectListPage(Map<String, Object> map) {
+        List<BoardDTO> bbs = new Vector<BoardDTO>();  // 寃곌낵(寃뚯떆臾� 紐⑸줉)瑜� �떞�쓣 蹂��닔
+        
+        // 荑쇰━臾� �뀥�뵆由�  
+        String query = " SELECT * FROM ( "
+                     + "    SELECT Tb.*, ROWNUM rNum FROM ( "
+                     + "        SELECT * FROM board ";
+
+        // 寃��깋 議곌굔 異붽� 
+        if (map.get("searchWord") != null) {
+            query += " WHERE " + map.get("searchField")
+                   + " LIKE '%" + map.get("searchWord") + "%' ";
+        }
+        
+        query += "      ORDER BY num DESC "
+               + "     ) Tb "
+               + " ) "
+               + " WHERE rNum BETWEEN ? AND ?"; 
+
+        try {
+            // 荑쇰━臾� �셿�꽦 
+            psmt = con.prepareStatement(query);
+            psmt.setString(1, map.get("start").toString());
+            psmt.setString(2, map.get("end").toString());
+            
+            // 荑쇰━臾� �떎�뻾 
+            rs = psmt.executeQuery();
+            
+            while (rs.next()) {
+                // �븳 �뻾(寃뚯떆臾� �븯�굹)�쓽 �뜲�씠�꽣瑜� DTO�뿉 ���옣
+                BoardDTO dto = new BoardDTO();
+                dto.setNum(rs.getString("num"));
+                dto.setTitle(rs.getString("title"));
+                dto.setContent(rs.getString("content"));
+                dto.setPostdate(rs.getDate("postdate"));
+                dto.setId(rs.getString("id"));
+                dto.setVisitcount(rs.getString("visitcount"));
+
+                // 諛섑솚�븷 寃곌낵 紐⑸줉�뿉 寃뚯떆臾� 異붽�
+                bbs.add(dto);
+            }
+        } 
+        catch (Exception e) {
+            System.out.println("寃뚯떆臾� 議고쉶 以� �삁�쇅 諛쒖깮");
+            e.printStackTrace();
+        }
+        
+        // 紐⑸줉 諛섑솚
+        return bbs;
+    }
+
 }
